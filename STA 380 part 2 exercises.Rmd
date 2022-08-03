@@ -1,0 +1,106 @@
+---
+title: "STA 380 Part 2 Exercises - Juwon Lee"
+output:
+  html_document:
+    df_print: paged
+---
+
+# Probability Practice
+
+## Part A.
+
+Given information:
+
+* p(random) = 0.3
+* p(truthful) = 0.7
+* p(yes) = 0.65
+* p(no) = 0.35
+
+* p(yes|random) = 0.3 * 0.5 = 0.15
+* p(no|random) = 0.3 * 0.5 = 0.15
+
+We want to figure out p(yes|truthful)
+
+* p(yes|truthful) = p(yes and truthful)/p(truthful)
+* p(yes) - p(yes and random) = p(yes and truthful)
+* 0.65 - 0.15 = 0.5
+
+Plug in:
+
+* p(yes|truthful) = 0.5/0.7
+
+```{r}
+0.5/0.7
+```
+
+## Part B.
+
+Given information:
+
+* p(test positive|has disease)  = 0.993
+* p(test negative | doesn't have disease) = 0.9999
+* p(has disease) = 0.000025
+
+Therefore:
+
+* p(has disease and tests positive) = 0.000025 * 0.993
+* p(has disease and tests negative) = 0.000025 * 0.007
+* p(does not have disease and tests positive) = 0.999975 * 0.0001
+* p(does not have disease and tests negative) = 0.999975 * 0.9999
+```{r}
+0.000025 * 0.993
+0.000025 * 0.007
+0.999975 * 0.0001
+0.999975 * 0.9999
+```
+We want to figure out p(has disease | tests positive)
+
+* p(has disease | tests positive) = p(has disease and tests positive)/p(tests positive)
+
+* p(tests positive) = p(does not have disease and tests positive) + p(has disease and tests positive)
+
+  = 0.000024825 + 0.000099975 = 0.0001248
+  
+Therefore:
+
+* p(has disease | tests positive) = p(has disease and tests positive)/p(tests positive)
+ = 0.000024825 / 0.0001248 = 0.1989
+  
+
+# Wrangling the Billboard Top 100
+
+```{r}
+library(readr)
+billboard <- read_csv("billboard.csv")
+head(billboard,10)
+```
+
+## Part A.
+```{r}
+library(tidyverse)
+
+billboard %>% group_by(performer, song) %>% summarize(count = n()) %>%
+  arrange(-count) %>% head(10)
+```
+This table represents the top 10 most popular songs since 1958. The count is the number of weeks the song appeared on the Billboard top 100 list.
+
+## Part B
+```{r}
+billboard %>% filter(year > 1958 & year < 2021) %>%
+  group_by(year) %>% 
+  summarize(num_songs = n_distinct(song)) %>%
+  ggplot() + geom_line(aes(year, num_songs))
+```
+
+## Part C
+```{r}
+billboard %>% group_by(song, performer) %>% 
+  summarize(max_weeks = max(weeks_on_chart)) %>%
+  filter(max_weeks >= 10) %>% 
+  group_by(performer) %>% summarize(number_songs_ten_weeks = n()) %>%
+  filter(number_songs_ten_weeks >= 30) %>% arrange(-number_songs_ten_weeks) %>%
+  ggplot(aes(x = performer, y = number_songs_ten_weeks)) + 
+  geom_bar(stat = "identity")
+```
+
+  
