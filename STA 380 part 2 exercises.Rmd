@@ -99,8 +99,118 @@ billboard %>% group_by(song, performer) %>%
   filter(max_weeks >= 10) %>% 
   group_by(performer) %>% summarize(number_songs_ten_weeks = n()) %>%
   filter(number_songs_ten_weeks >= 30) %>% arrange(-number_songs_ten_weeks) %>%
-  ggplot(aes(x = performer, y = number_songs_ten_weeks)) + 
-  geom_bar(stat = "identity")
+  ggplot(aes(y = reorder(performer, number_songs_ten_weeks), 
+             x = number_songs_ten_weeks)) + 
+  geom_bar(stat = "identity") + 
+  ylab("Performer") +
+  xlab("Number of Songs") + 
+  ggtitle("Artists Who had 30 Songs Stay on at least 10 Weeks")
 ```
 
+# Visual story telling part 1: green buildings
+
+```{r}
+library(readr)
+greenbuildings <- read_csv("greenbuildings.csv")
+greenbuildings %>% head(10)
+```
+
+```{r}
+### see how leasing rate correlates with the rest of the variables
+
+lesstenpct=greenbuildings %>% filter(leasing_rate<=10)
+
+cor(lesstenpct[sapply(lesstenpct, is.numeric)],use="complete.obs")[,6]
+
+
+moretenpct=greenbuildings %>% filter(leasing_rate>10)
+
+cor(moretenpct[sapply(moretenpct, is.numeric)],use="complete.obs")[,6]
+```
+
+Since the stats guru scrubbed the data clean of buildings with less than 10%, we wanted to see if these data entries were correlated with any of the other variables, and how the correlation differs between the less than 10% full buildings and the more than 10% full buildings. We noticed that in the less than 10% full correlation data, the cluster rent was negatively correlated at -0.137, whereas in the more than 10% correlation data it is positively correlated at 0.17. Other variables of note include amenities and renovated, both of which differ by around 20%. This suggests there may be a structural difference between the two groups and as such we cannot drop the data in which less then 10 percent of the building is being leased. 
+
+```{r}
+greenbuildings %>% filter(leasing_rate <= 90) %>%
+  filter(green_rating == 1) %>% 
+  ggplot(aes (x = Rent)) + geom_histogram()
+
+greenbuildings %>% filter(leasing_rate <= 90) %>%
+  filter(green_rating == 0) %>% 
+  ggplot(aes (x = Rent)) + geom_histogram()
+```
+
+
+
+```{r}
+greenbuildings %>% filter(leasing_rate <= 90) %>%
+  ggplot(aes (x = Gas_Costs, fill = as.factor(green_rating))) + 
+  geom_histogram(position = "identity")
+```
+
+
+```{r}
+greenbuildings %>% filter(leasing_rate <= 90) %>%
+  ggplot(aes (x = Electricity_Costs, fill = as.factor(green_rating))) + 
+  geom_histogram(position = "identity")
+```
+
+
+```{r}
+
+
+greenbuildings %>% select(Rent, green_rating) %>% group_by(green_rating) %>% 
+  summarize(x = median(Rent)) 
+```
+
+
+# Visual story telling part 2: Capital Metro data
+
+```{r}
+capmetro <- read_csv("capmetro_UT.csv")
+capmetro %>% head(10)
+```
+
+How does weather affect the number of students who take the bus?
+
+```{r}
+capmetro %>% mutate(temps = cut(temperature, breaks = c(30, 40, 50, 60, 70, 80, 90, 100))) %>%
+  group_by(temps) %>% 
+  summarize(num_riders = sum(boarding)) %>% 
+  ggplot(aes(x = temps, y = num_riders)) +
+  geom_bar(stat = "identity") +
+  xlab("Temperature") + ylab("Number of Riders")
+
+
+capmetro %>% mutate(temps = cut(temperature, breaks = c(30, 40, 50, 60, 70, 80, 90))) %>% group_by(temps) %>% 
+  summarize(num_occurance = n(), num_riders = sum(boarding)) %>%
+  mutate(riders_per_temp = num_occurance/num_riders) %>% 
+  ggplot(aes(x = temps, y = riders_per_temp)) + geom_bar(stat = "identity") +
+  xlab("Temperature") + ylab("Percentage of Riders")
+
+
+```
+
+What about day of the week?
+
+```{r}
   
+```
+
+```{r}
+model1=lm(data=capmetro,boarding~hour_of_day)
+summary(model1)
+
+pairs(boarding~hour_of_day, data=capmetro)
+```
+As we can see from this graph, boarding increases steadily over the course of the day (starting at 6:00 AM), and at around the 16th hour of the day, or 4:00 PM, the boarding peaks and begins to decrease fairly sharply until the end of the day (9:00 PM).
+
+# Portfolio modeling
+
+# Clustering and PCA
+
+# Market segmentation
+
+# The Reuters corpus
+
+# Association rule mining
