@@ -542,24 +542,28 @@ clusplot(wine_1[, c("total.sulfur.dioxide", "chlorides")],
          xlab = 'total.sulfur.dioxide',
          ylab = 'chlorides')
 ```
-The sum of squared on the Kmeans clustering is 62.6%.
+The sum of squared on the Kmeans clustering is 62.6%. This is not great for predicting whether a wine will be red or white, and this makes sense when looking at the graph of the clusters. The clusters are primarily defined by outliers. Thus PCA may be a better option. Regardless, both kmeans and Principal Component Analysis are good tools for reducing dimensionality.
 
 # Market segmentation
 
 ```{r}
 library(readr)
-library(ggplot2)
+df1 <- read_csv("social_marketing.csv")
+#View(df)
 library(dplyr)
-mkt <- read_csv("social_marketing.csv")
+df2 = select(df1, -1) #gets rid of user ids
+df3 <- df2 %>%
+  mutate(across(, ~ .x / rowSums(across()))) #normalizing
+colsums = sort(colSums(df3))
+barplot(colsums, horiz=TRUE, las=2)
+#same thing that milan did but instead of just sum, its the normalized sum
 
-# sumdata=data.frame(value=apply(mkt,2,sum))
-# sumdata$key=rownames(sumdata)
-# ggplot(data=sumdata, aes(x=key, y=value, fill=key)) +
-# geom_bar(colour="black", stat="identity")
-
-
-barplot(colSums(mkt[,2:37]),las=2, horiz = TRUE)
-colSums(mkt[,2:37])
+library("ggpubr")
+df3correlations <- cor(df3[,])
+df4 <- select(as.data.frame(df3correlations), 16) #<- variable index number
+plot.default(df4)
+#df3 is the correlation df that includes the correlations between all the data,
+#df4 is just health_nutrition's correlation. This variable index can be changed as fit
 ```
 
 As we can see from this bar chart which depicts the differing amounts of tweets per category, there are certain categorys with a larger amount of people interacting with that genre. Most notably, 'chatter' is the category with the largest number of tweets, but it is a very general category and therefore may have a disproportionate amount of tweets. Besides chatter, lots of people are tweeting about photo sharing, health and nutrition, politics, current events, and travel. The genres least discussed from this dataset are Eco, dating, adult, and crafts. What NutrientH2O can take away from this is how to adjust/structure their advertisements in a way which maximizes the engagement of users. 
