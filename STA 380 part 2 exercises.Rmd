@@ -1,5 +1,5 @@
 ---
-title: "STA 380 Part 2 Exercises - Juwon Lee"
+title: "STA 380 Part 2 Exercises Juwon Lee, Aakash Talathi, Milan Patel, Teja Sirigina"
 output:
   html_document:
     df_print: paged
@@ -89,7 +89,8 @@ This table represents the top 10 most popular songs since 1958. The count is the
 billboard %>% filter(year > 1958 & year < 2021) %>%
   group_by(year) %>% 
   summarize(num_songs = n_distinct(song)) %>%
-  ggplot() + geom_line(aes(year, num_songs))
+  ggplot() + geom_line(aes(year, num_songs)) + 
+  ggtitle("Musical Diversity over Years")
 ```
 
 ## Part C
@@ -139,9 +140,10 @@ greenbuildings %>% filter(leasing_rate <= 90) %>%
   filter(green_rating == 0) %>% 
   ggplot(aes (x = Rent)) + geom_histogram()
 ```
+Just to check the Excel Guru's reasoning, the distributions were plotted.
 
 
-
+We can see if utility costs will differ, which can affect the developer's decision
 ```{r}
 greenbuildings %>% filter(leasing_rate <= 90) %>%
   ggplot(aes (x = Gas_Costs, fill = as.factor(green_rating))) + 
@@ -154,7 +156,9 @@ greenbuildings %>% filter(leasing_rate <= 90) %>%
   ggplot(aes (x = Electricity_Costs, fill = as.factor(green_rating))) + 
   geom_histogram(position = "identity")
 ```
+These two histograms show us that overall, the cost of electricity and gas is similar for both green buildings and non-green buildings.
 
+The information we can determine from our analysis supports the Excel Guru.
 
 ```{r}
 
@@ -174,28 +178,28 @@ capmetro %>% head(10)
 How does weather affect the number of students who take the bus?
 
 ```{r}
-capmetro %>% mutate(temps = cut(temperature, breaks = c(30, 40, 50, 60, 70, 80, 90, 100))) %>%
-  group_by(temps) %>% 
-  summarize(num_riders = sum(boarding)) %>% 
-  ggplot(aes(x = temps, y = num_riders)) +
-  geom_bar(stat = "identity") +
-  xlab("Temperature") + ylab("Number of Riders")
-
-
 capmetro %>% mutate(temps = cut(temperature, breaks = c(30, 40, 50, 60, 70, 80, 90))) %>% group_by(temps) %>% 
   summarize(num_occurance = n(), num_riders = sum(boarding)) %>%
   mutate(riders_per_temp = num_occurance/num_riders) %>% 
   ggplot(aes(x = temps, y = riders_per_temp)) + geom_bar(stat = "identity") +
   xlab("Temperature") + ylab("Percentage of Riders")
-
-
 ```
+Overall, we can see that students will take the bus the most when it is very cold outside. We expected that very hot days would also have the most number of riders, however it was the lowest bucket. One possible reason for this is that the hottest time of the day is typically between 4-6 which is not a time most students travel meaning that overall, they wouldn't take the bus.
+
+The Y axis was also scaled since there were less occurrences of very hot and very cold days. 
+
+
 
 What about day of the week?
 
 ```{r}
-  
+day = capmetro$day_of_week
+
+capmetro %>% group_by(day_of_week) %>% summarize(numberBoard = sum(boarding)) %>% ggplot(aes(x = day_of_week, y = numberBoard)) + geom_bar(stat = "identity")
 ```
+Based on this graph we can see bus ridership at UT is much higher during the weekdays, which is what we expected given that school is not in session during those days.
+
+And what about time of day?
 
 ```{r}
 model1=lm(data=capmetro,boarding~hour_of_day)
@@ -207,10 +211,405 @@ As we can see from this graph, boarding increases steadily over the course of th
 
 # Portfolio modeling
 
+We decided to use the ETFs SPY, VOO, QQQ, ARKK, and VNQ as they are all different types of ETFs which has SPY, a very safe ETF, and ARKK, a much more risky ETF. 
+```{r}
+library(mosaic)
+library(quantmod)
+library(foreach)
+
+myETFs = c("SPY", "VOO", "QQQ", "ARKK", "VNQ")
+getSymbols(myETFs, from = "2017-07-31", to = "2022-07-31")
+```
+
+```{r}
+SPYa = adjustOHLC(SPY)
+QQQa = adjustOHLC(QQQ)
+VOOa = adjustOHLC(VOO)
+ARKKa = adjustOHLC(ARKK)
+VNQa = adjustOHLC(VNQ)
+```
+
+```{r}
+all_returns = cbind(ClCl(SPYa),
+								    ClCl(VOOa),
+								    ClCl(QQQa),
+								    ClCl(VNQa),
+								    ClCl(ARKKa))
+
+head(all_returns)
+
+all_returns = as.matrix(na.omit(all_returns))
+```
+
+```{r}
+pairs(all_returns)
+```
+
+## Low-Risk Model
+```{r}
+return.today = resample(all_returns, 1, orig.ids=FALSE)
+
+# Update the value of your holdings
+# Assumes an equal allocation to each asset
+total_wealth = 100000
+my_weights = c(0.8,0.05,0.05, 0.05, 0.05)
+holdings = total_wealth*my_weights
+holdings = holdings*(1 + return.today)
+
+# Compute your new total wealth
+holdings
+total_wealth = sum(holdings)
+total_wealth
+```
+
+```{r}
+## begin block
+total_wealth = 100000
+weights = c(0.8, 0.05, 0.05, 0.05, 0.05)
+holdings = weights * total_wealth
+n_days = 20  # capital T in the notes
+wealthtracker = rep(0, n_days) # Set up a placeholder to track total wealth
+for(today in 1:n_days) {
+	return.today = resample(all_returns, 1, orig.ids=FALSE)  # sampling from R matrix in notes
+	holdings = holdings + holdings*return.today
+	total_wealth = sum(holdings)
+	wealthtracker[today] = total_wealth
+}
+total_wealth
+plot(wealthtracker, type='l')
+## end block
+```
+```{r}
+initial_wealth = 100000
+sim1 = foreach(i=1:5000, .combine='rbind') %do% {
+	total_wealth = initial_wealth
+	weights = c(0.8, 0.05, 0.05, 0.05, 0.05)
+	holdings = weights * total_wealth
+	n_days = 20
+	wealthtracker = rep(0, n_days)
+	for(today in 1:n_days) {
+		return.today = resample(all_returns, 1, orig.ids=FALSE)
+		holdings = holdings + holdings*return.today
+		total_wealth = sum(holdings)
+		wealthtracker[today] = total_wealth
+	}
+	wealthtracker
+}
+
+# each row is a simulated trajectory
+# each column is a data
+head(sim1)
+hist(sim1[,n_days], 25)
+
+# Profit/loss
+mean(sim1[,n_days])
+mean(sim1[,n_days] - initial_wealth)
+hist(sim1[,n_days]- initial_wealth, breaks=30)
+
+# 5% value at risk:
+quantile(sim1[,n_days]- initial_wealth, prob=0.05)
+```
+
+We expect lose only around $8000 in the worst case scenario. 
+
+## Equal Investing
+```{r}
+return.today = resample(all_returns, 1, orig.ids=FALSE)
+
+# Update the value of your holdings
+# Assumes an equal allocation to each asset
+total_wealth = 100000
+my_weights = c(0.2,0.2,0.2, 0.2, 0.2)
+holdings = total_wealth*my_weights
+holdings = holdings*(1 + return.today)
+
+# Compute your new total wealth
+holdings
+total_wealth = sum(holdings)
+total_wealth
+```
+
+```{r}
+## begin block
+total_wealth = 100000
+weights = c(0.2,0.2,0.2, 0.2, 0.2)
+holdings = weights * total_wealth
+n_days = 20  # capital T in the notes
+wealthtracker = rep(0, n_days) # Set up a placeholder to track total wealth
+for(today in 1:n_days) {
+	return.today = resample(all_returns, 1, orig.ids=FALSE)  # sampling from R matrix in notes
+	holdings = holdings + holdings*return.today
+	total_wealth = sum(holdings)
+	wealthtracker[today] = total_wealth
+}
+total_wealth
+plot(wealthtracker, type='l')
+## end block
+```
+
+```{r}
+initial_wealth = 100000
+sim1 = foreach(i=1:5000, .combine='rbind') %do% {
+	total_wealth = initial_wealth
+	weights = c(0.2,0.2,0.2,0.2,0.2)
+	holdings = weights * total_wealth
+	n_days = 20
+	wealthtracker = rep(0, n_days)
+	for(today in 1:n_days) {
+		return.today = resample(all_returns, 1, orig.ids=FALSE)
+		holdings = holdings + holdings*return.today
+		total_wealth = sum(holdings)
+		wealthtracker[today] = total_wealth
+	}
+	wealthtracker
+}
+
+# each row is a simulated trajectory
+# each column is a data
+head(sim1)
+hist(sim1[,n_days], 25)
+
+# Profit/loss
+mean(sim1[,n_days])
+mean(sim1[,n_days] - initial_wealth)
+hist(sim1[,n_days]- initial_wealth, breaks=30)
+
+# 5% value at risk:
+quantile(sim1[,n_days]- initial_wealth, prob=0.05)
+```
+We expect to lose around $10,000 at the worst case scenario
+
+## High-Risk Model
+
+```{r}
+return.today = resample(all_returns, 1, orig.ids=FALSE)
+
+# Update the value of your holdings
+# Assumes an equal allocation to each asset
+total_wealth = 100000
+my_weights = c(0.05,0.05,0.05, 0.8, 0.05)
+holdings = total_wealth*my_weights
+holdings = holdings*(1 + return.today)
+
+# Compute your new total wealth
+holdings
+total_wealth = sum(holdings)
+total_wealth
+```
+
+```{r}
+## begin block
+total_wealth = 100000
+weights = c(0.05,0.05,0.05, 0.8, 0.05)
+holdings = weights * total_wealth
+n_days = 20  # capital T in the notes
+wealthtracker = rep(0, n_days) # Set up a placeholder to track total wealth
+for(today in 1:n_days) {
+	return.today = resample(all_returns, 1, orig.ids=FALSE)  # sampling from R matrix in notes
+	holdings = holdings + holdings*return.today
+	total_wealth = sum(holdings)
+	wealthtracker[today] = total_wealth
+}
+total_wealth
+plot(wealthtracker, type='l')
+## end block
+```
+
+```{r}
+initial_wealth = 100000
+sim1 = foreach(i=1:5000, .combine='rbind') %do% {
+	total_wealth = initial_wealth
+	weights = c(0.05,0.05,0.05, 0.8, 0.05)
+	holdings = weights * total_wealth
+	n_days = 20
+	wealthtracker = rep(0, n_days)
+	for(today in 1:n_days) {
+		return.today = resample(all_returns, 1, orig.ids=FALSE)
+		holdings = holdings + holdings*return.today
+		total_wealth = sum(holdings)
+		wealthtracker[today] = total_wealth
+	}
+	wealthtracker
+}
+
+# each row is a simulated trajectory
+# each column is a data
+head(sim1)
+hist(sim1[,n_days], 25)
+
+# Profit/loss
+mean(sim1[,n_days])
+mean(sim1[,n_days] - initial_wealth)
+hist(sim1[,n_days]- initial_wealth, breaks=30)
+
+# 5% value at risk:
+quantile(sim1[,n_days]- initial_wealth, prob=0.05)
+```
+
+We expect to lose around $10,000 at the worst case scenario.
+
 # Clustering and PCA
+
+```{r}
+# PCA
+wine <- read_csv("wine.csv")
+library(ggplot2)
+library(tidyverse)
+head(wine)
+Z = scale(wine[,1:12], center=TRUE, scale=FALSE)
+winepca = prcomp(Z, rank=6, scale=TRUE)
+summary(winepca)
+plot(winepca)
+```
+
+```{r}
+scores=predict(winepca)
+plot(scores[,1:2], pch=21, bg=cm.colors(120)[120:1], main="Currency PC scores")
+plot(scores[,2:3], pch=21, bg=cm.colors (120)[120:1], main="Currency PC scores")
+plot(scores[,3:4], pch=21, bg=cm.colors(120)[120:1], main="Currency PC scores")
+plot(scores[,4:5], pch=21, bg=cm.colors(120)[120:1], main="Currency PC scores")
+plot(scores[,5:6], pch=21, bg=cm.colors(120)[120:1], main="Currency PC scores")
+```
+
+```{r}
+# K Means Clustering:
+
+# Loading package
+library(ClusterR)
+library(cluster)
+```
+
+
+```{r}
+# Removing initial label of
+# Species from original dataset
+wine <- read_csv("wine.csv")
+wine_1 <- wine[,1:12]
+```
+
+```{r}
+# Fitting K-Means clustering Model
+# to training dataset
+set.seed(240) # Setting seed
+kmeans.re <- kmeans(wine_1, centers = 2, nstart = 25)
+kmeans.re
+```
+
+```{r}
+# Cluster identification for
+# each observation
+kmeans.re$cluster
+```
+
+```{r}
+# Confusion Matrix
+cm <- table(wine$color, kmeans.re$cluster)
+cm
+```
+
+
+```{r}
+# Model Evaluation and visualization
+plot(wine_1[c("total.sulfur.dioxide", "chlorides")])
+plot(wine_1[c("total.sulfur.dioxide", "chlorides")],
+     col = kmeans.re$cluster)
+plot(wine_1[c("total.sulfur.dioxide", "chlorides")],
+     col = kmeans.re$cluster,
+     main = "K-means with 2 clusters")
+```
+
+
+```{r}
+## Plotiing cluster centers
+kmeans.re$centers
+kmeans.re$centers[, c("total.sulfur.dioxide", "chlorides")]
+```
+
+```{r}
+## Visualizing clusters
+y_kmeans <- kmeans.re$cluster
+clusplot(wine_1[, c("total.sulfur.dioxide", "chlorides")],
+         y_kmeans,
+         lines = 0,
+         shade = TRUE,
+         color = TRUE,
+         labels = 2,
+         plotchar = FALSE,
+         span = TRUE,
+         main = paste("Cluster color"),
+         xlab = 'total.sulfur.dioxide',
+         ylab = 'chlorides')
+```
+The sum of squared on the Kmeans clustering is 62.6%.
 
 # Market segmentation
 
+```{r}
+library(readr)
+library(ggplot2)
+library(dplyr)
+mkt <- read_csv("social_marketing.csv")
+
+# sumdata=data.frame(value=apply(mkt,2,sum))
+# sumdata$key=rownames(sumdata)
+# ggplot(data=sumdata, aes(x=key, y=value, fill=key)) +
+# geom_bar(colour="black", stat="identity")
+
+
+barplot(colSums(mkt[,2:37]),las=2, horiz = TRUE)
+colSums(mkt[,2:37])
+```
+
+As we can see from this bar chart which depicts the differing amounts of tweets per category, there are certain categorys with a larger amount of people interacting with that genre. Most notably, 'chatter' is the category with the largest number of tweets, but it is a very general category and therefore may have a disproportionate amount of tweets. Besides chatter, lots of people are tweeting about photo sharing, health and nutrition, politics, current events, and travel. The genres least discussed from this dataset are Eco, dating, adult, and crafts. What NutrientH2O can take away from this is how to adjust/structure their advertisements in a way which maximizes the engagement of users. 
+
 # The Reuters corpus
 
+```{r}
+# raw.files <- data_frame(filename = list.files('/Users/aakashtalathi/Desktop/ReutersC50/C50train'))
+#
+#
+# raw.file.paths <- raw.files  %>%
+# mutate(filepath = paste0("/Users/aakashtalathi/Desktop/ReutersC50/C50train/", filename))
+#
+# for (x in raw.file.paths)
+# {
+#   q = x
+#   raw.files.x <- data_frame(filenamex = list.files(x))
+# }
+# View(raw.files.x)
+```
+
+We had trouble loading in the raw files for this question so I wrote a brief analysis of the process we would have gone through had we successfully loaded them in. Rather then looking at individual texts of an author we believed it to be more benifical to group together each text as one large paragraph which is representative of the words the author would use. As we did not have a way to easily measure sentiment for this dataset we decided to calulate the IDF scores for each unique word used by the author, and this data would be what we would cluster on. This allows us to get a representation of how unique a authors vocabulary is as compared to their peers. Based on the results of clustering, we may be able to see groups of authors with similar vocabulary levels/usuage.
+
+The question that will be answered in this analysis is what authors have similar unique vocabulary levels to each other? The approach that will be used is calculating the average of the TF-IDF of all words unique words an author uses. For example, if a an author uses the word "it" multiple times it will only be counted ones in terms of the TF-IDF. Essentially, we are creating a list of every unique word an author has ever used in the given texts and running the TF-IDF over every list of authors. We then calculate the average TF-IDF score per author. Using this technique we can hope to see a scatterplot of each author, grouped together with other authors with similar unique vocabulary words. If an author tends to use words that other authors do not, we will see them clustered together and vice versa. We believe that two or three clusters is the optimal level for this problem as there should not be micro clusters within the vocabulary levels of the authors.
+
+In conclusion this analysis is important because it presents an mathematical grouping of authors who may be using more unique words, an indicator that they are writing about topics others aren''t or using a wider range of vocabulary which may be indicative of certain writing features.
+
+
 # Association rule mining
+
+```{r}
+# install.packages("arules")
+# install.packages("arulesViz")
+
+library(tidyverse)
+library(igraph)
+library(arules)  # has a big ecosystem of packages built around it
+library(arulesViz)
+```
+
+```{r}
+data("Groceries")
+
+rules <- apriori(Groceries, parameter=list(support=.02, confidence=.15))
+
+arules::inspect(rules[1:20])
+```
+What our association rules tell us is that people buy soda, rolls/buns, other vegetables, and whole milk the most. This is why we can assume with nothing else in their basket, they would get these items. Whole milk seems to be something people get frequently regardless of other items as many association rules are recommending whole milk. Some interesting rules to be seen are pork and other vegetables as typically you would combine both in a dish. However, for other proteins such as beef, the first recommendation remains as whole milk. Butter can be an association to begetables as people tend to cook vegetables in butter. 
+
+
+```{r}
+plot(rules)
+```
+Overall, high lift gives us low support (although everything is pretty low on support)
+
