@@ -5,6 +5,8 @@ output:
     df_print: paged
 ---
 
+https://github.com/juwon0502/STA-380-pt-2-Exercises
+
 # Probability Practice
 
 ## Part A.
